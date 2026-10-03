@@ -1,0 +1,143 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>방아쇠의 무게</title>
+<style>
+:root{--bg:#e8e4da;--fg:#1b1b1b;--pn:#d6d1c4;--ac:#a11;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#111;--fg:#ddd;--pn:#1e1e1e;--ac:#e55}}
+:root[data-theme="dark"]{--bg:#111;--fg:#ddd;--pn:#1e1e1e;--ac:#e55}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,"Malgun Gothic",sans-serif;display:flex;flex-direction:column;align-items:center;padding:6px;overflow-x:hidden}
+h1{font-size:16px;margin:2px 0}
+#st{font-weight:700;color:var(--ac);margin:2px 0}
+canvas{cursor:crosshair;image-rendering:pixelated;width:min(96vw,calc((100vh - 285px)*16/9));max-width:100%;background:#000;display:block}
+#cap{width:min(96vw,920px);min-height:3.2em;background:var(--pn);padding:4px 8px;margin:4px 0}
+.row{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;align-items:center;margin:3px 0;max-width:100%}
+button,select{font:inherit;padding:4px 10px;background:var(--pn);color:var(--fg);border:1px solid var(--fg);cursor:pointer}
+#rules{max-width:920px;margin:2px 0;font-size:13px;text-align:center}
+#ev{font-size:12px;opacity:.85}
+details{width:min(96vw,920px);margin:4px 0}summary{cursor:pointer}#bl{font-weight:700;border-width:2px;border-color:var(--ac)}
+#log{overflow-x:auto;font-size:12px}
+table{border-collapse:collapse}td,th{border:1px solid var(--fg);padding:1px 6px}
+footer{font-size:11px;opacity:.7;text-align:center;max-width:920px}
+</style></head><body>
+<h1>방아쇠의 무게</h1>
+<div id="st" aria-live="polite"></div>
+<canvas id="cv" width="320" height="180"></canvas>
+<div id="cap"></div>
+<div id="rules"><b>규칙</b> 제한 시간 안에 <b>마우스로 조준해 표적 위에서 클릭(또는 Space)</b>하면 살아남지만 처형자가 됩니다. <b>거부(N)</b>하거나 시간이 다 되면 당신이 죽습니다. 다섯 장면을 끝까지 넘기면 성공입니다.</div>
+<div class="row">
+<button id="bf">발사 (Space)</button><button id="bn">쏘지 않는다 (N)</button><button id="bp">일시정지/재개 (P)</button><button id="br">시작·다시 시작 (Enter/R)</button><button id="bl">기록 보기</button>
+</div>
+<div class="row">
+<label>제한 시간(난이도) <select id="lim"><option>4</option><option>6</option><option>8</option><option>10</option></select>초 <small>(다음 판부터)</small></label>
+<label><input type="checkbox" id="mu"> 음소거</label><label><input type="checkbox" id="rd"> 움직임 줄이기</label>
+<button id="bz">저장 초기화</button>
+</div>
+<div id="ev"></div><div id="note" style="font-size:12px"></div>
+<details id="dl"><summary>플레이 기록 (브라우저에 보존)</summary><div id="log"></div></details>
+<footer>Jesse Venbrux의 《Execution》(2008)에서 영감을 받은 허구의 게임입니다. 도형과 글자만 사용하며 외부 파일·개인정보·로그인이 없습니다.</footer>
+<script>
+(()=>{
+const $=id=>document.getElementById(id),C=$('cv'),X=C.getContext('2d'),W=320,H=180,N=4,KEY='trigger_weight_v2';
+const V=[
+{n:'한도윤',a:'34세',cr:'밀수 가담',hr:'#432',sk:'#e0b088',cl:'#557',pn:'#334',dead:['명령서에는 "처리 완료". 그의 집에서는 딸이 식탁에 수저 두 벌을 놓았다.','딸은 아버지가 돌아올 시간마다 창가에 앉았다. 해가 져도 불을 켜지 않았다.'],g:'손이 아직 따뜻하다.'},
+{n:'오세진',a:'19세',cr:'탈영',hr:'#a62',sk:'#f0c8a0',cl:'#575',pn:'#343',dead:['친구는 답장 없는 편지를 매일 썼고, 어머니는 현관에 신발을 그대로 두었다.','군복 주머니에서 나온 사진 한 장이 어머니에게 전해졌다. 어머니는 사진을 뒤집지 못했다.'],g:'어젯밤에도 총성이 들렸다.'},
+{n:'이순자',a:'61세',cr:'명령 불복종',hr:'#ccc',sk:'#d9a882',cl:'#844',pn:'#433',dead:['아들은 장례에 가지 못했다. 마을에는 "그 사람"이 누구인지 소문이 돌았다.','국밥집 문에는 "당분간 쉽니다"라는 종이가 붙었다. 그 종이는 오래 떼어지지 않았다.'],g:'거울 속 얼굴이 낯설다.'},
+{n:'박민재',a:'27세',cr:'교사 명단 등재',hr:'#111',sk:'#e6bb94',cl:'#468',pn:'#235',dead:['제자들은 교실의 빈자리를 치우지 않았다. 칠판의 이름도 지워지지 않았다.','학기 말, 반 아이들은 그의 몫으로 졸업 앨범 한 장을 비워 두었다.'],g:'이제 눈을 감아도 보인다.'},
+{n:'최영만',a:'48세',cr:'약품 횡령',hr:'#555',sk:'#dcb08a',cl:'#887',pn:'#443',dead:['그가 몰래 나눠 주던 약은 끊겼다. 골목의 아이들은 열이 내리지 않는 밤을 보냈다.','약국 장부에서 그의 이름이 줄로 그어졌다. 줄은 두 번 그어져 있었다.'],g:'숨소리가 귓가에 남아 있다.'},
+{n:'서연화',a:'23세',cr:'허위 보도 혐의',hr:'#214',sk:'#f0c8a0',cl:'#a68',pn:'#324',dead:['그녀의 기사는 모두 삭제되었다. 동생은 삭제된 문장을 기억나는 만큼 다시 적었다.','취재 수첩은 증거품 상자에 담겼다. 마지막 장에는 오늘 날짜가 적혀 있었다.'],g:'숫자를 셀 때마다 이름이 떠오른다.'},
+{n:'장석구',a:'70세',cr:'사냥총 은닉',hr:'#bbb',sk:'#cf9d78',cl:'#563',pn:'#432',dead:['손녀는 할아버지의 낡은 모자를 쓰고 학교에 갔다. 아무도 이유를 묻지 못했다.','산자락 집의 개는 며칠을 문 앞에서 기다렸다. 먹이를 줘도 고개를 돌렸다.'],g:'발소리가 따라온다.'},
+{n:'문하준',a:'30세',cr:'도주 방조',hr:'#135',sk:'#e2b690',cl:'#369',pn:'#235',dead:['아내는 출항 시간마다 부두에 나가 섰다. 배는 들어왔지만 그는 없었다.','그가 매던 매듭은 부두에 그대로 남았다. 누구도 풀지 못했다.'],g:'파도 소리가 총성처럼 들린다.'}];
+const B=["..hhhh..",".hhhhhh.",".ssssss.",".skssks.",".ssssss.","..ssss..",".cccccc.","sccccccs","sccccccs","sccccccs",".cccccc.",".pp..pp.",".pp..pp.",".pp..pp.","kk....kk"];
+const BF=B.map((r,i)=>i===3?'.kkkkkk.':r);
+const pal=v=>({h:v.hr,s:v.sk,c:v.cl,p:v.pn,k:'#111'});
+const ME={h:'#654',s:'#d9a882',c:'#777',p:'#445',k:'#111'},SH={h:'#221',s:'#f0c8a0',c:'#a44',p:'#334',k:'#111'};
+const CN={clear:'결말',refuse:'거부',timeout:'망설임'};
+let note='',sv=load(),S,ev,last=performance.now(),actx,lastCap='';
+function def(){return{v:1,log:[],lim:6,mute:false,red:false}}
+function load(){let raw=null;try{raw=localStorage.getItem(KEY)}catch(e){}
+ if(raw===null)return def();
+ try{const j=JSON.parse(raw);
+  if(j&&j.v===1&&Array.isArray(j.log)&&[4,6,8,10].includes(j.lim)&&typeof j.mute==='boolean'&&typeof j.red==='boolean'){
+   j.log=j.log.filter(o=>o&&typeof o.k==='number'&&typeof o.ms==='number'&&typeof o.lim==='number'&&typeof o.avg==='number'&&typeof o.c==='string').slice(-100);return j}}catch(e){}
+ note='저장값이 비었거나 손상되어 기본값(제한 6초·효과 켬)으로 시작했습니다.';return def()}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(sv))}catch(e){}}
+const AX=160,AY=100,HIT=[128,52,192,172];
+function fresh(ph){ev={r:0,o:0,i:0,fx:0};S={ph,q:[...V].sort(()=>Math.random()-.5).slice(0,N),dt:'',r:0,k:0,rt:sv.lim*1000,lim:sv.lim,ms:0,nt:0,rts:[],fx:0,pv:'',c:'',gt:'',ax:AX,ay:AY,mt:0}}
+const onTarget=()=>S.ax>=HIT[0]&&S.ax<=HIT[2]&&S.ay>=HIT[1]&&S.ay<=HIT[3];
+function newRun(){fresh('play')}
+const act=()=>['play','narr','final'].includes(S.ph);
+function autoP(){if(act()){S.pv=S.ph;S.ph='pause'}}
+function tog(){S.ph==='pause'?S.ph=S.pv:autoP()}
+function snd(){if(sv.mute)return;try{actx=actx||new AudioContext();const t=actx.currentTime,o=actx.createOscillator(),g=actx.createGain();o.type='sawtooth';o.frequency.setValueAtTime(140,t);o.frequency.exponentialRampToValueAtTime(30,t+.2);g.gain.setValueAtTime(.25,t);g.gain.exponentialRampToValueAtTime(.001,t+.2);o.connect(g).connect(actx.destination);o.start();o.stop(t+.2)}catch(e){}}
+function bang(){ev.fx++;if(!sv.red)S.fx=260;snd()}
+function fire(){ev.r++;
+ if(S.ph!=='play'&&S.ph!=='final'){ev.i++;return}
+ if(S.ph==='play'&&!onTarget()){ev.i++;S.mt=900;return}
+ ev.o++;
+ if(S.ph==='final'){finish('clear');return}
+ S.k++;S.rts.push(S.lim*1000-S.rt);bang();S.gt=S.q[S.r].g;S.dt=S.q[S.r].dead[Math.random()*2|0];S.ph='narr';S.nt=2400}
+function refuse(){ev.r++;if(S.ph!=='play'&&S.ph!=='final'){ev.i++;return}ev.o++;finish(S.ph==='final'?'clear':'refuse')}
+function finish(c){bang();S.ph='end';S.c=c;
+ const avg=S.rts.length?Math.round(S.rts.reduce((a,b)=>a+b)/S.rts.length):0;
+ sv.log.push({c,k:S.k,ms:Math.round(S.ms),lim:S.lim,avg});sv.log=sv.log.slice(-100);save();showLog()}
+function endText(){
+ if(S.c==='clear')return `<span style="background:#fd4;color:#111;padding:1px 8px;font-weight:700">★ 승리 — 결말 도달 ★</span><br><b>처형대에 선 사람.</b> ${N}명의 이름을 남기고 당신은 눈이 가려진 채 서 있다. 총을 든 사람은 끝내 얼굴을 보이지 않았다. <i>후일담: 명령서에는 당신의 이름 위에 "처리 완료"가 찍혔다. 당신의 이름은 ${N}명의 이름 아래에 같은 필체로 적혔다.</i>`;
+ const why=S.c==='refuse'?'쏘지 않았다':'망설였다';
+ const ep=S.k?`방아쇠를 ${S.k}번 당긴 손은 마지막에 멈췄다. 명령서의 당신 이름 옆 사유란에는 "${CN[S.c]}" 한 단어가 적혔고, 서류는 다음 집행자에게 넘어갔다.`:`당신은 방아쇠를 한 번도 당기지 않았다. 명령서의 당신 이름 옆 사유란에는 "${CN[S.c]}" 한 단어가 적혔고, 서류는 조용히 서류철에 꽂혔다.`;
+ return `<b>당신은 ${why}. 총성은 당신 쪽에서 울렸다.</b> <i>후일담: ${ep}</i>`}
+function capText(){const p=S.ph==='pause'?S.pv:S.ph;
+ if(p==='title'||S.ph==='title')return '시작 버튼 또는 Enter로 시작합니다. 명령이 떨어지면 망설일 시간은 많지 않습니다.';
+ if(p==='play'){const v=S.q[S.r];return `<b>${v.n}(${v.a})</b> — 죄목: ${v.cr}. 쏘지 않으면 당신이 죽는다.${S.k?` <i>“${S.gt}”</i>`:''}`}
+ if(p==='narr')return `${S.dt} <i>“${S.gt}”</i>`;
+ if(p==='final')return `눈이 가려진 채 서 있다. 누군가 총을 겨눈다. 할 수 있는 일은 눈을 감는 것뿐이다. (Space 또는 클릭)`;
+ return endText()+' <b>Enter/R로 다시 시작.</b>'}
+function spr(rows,px,py,s,p,a){X.globalAlpha=a;rows.forEach((r,y)=>[...r].forEach((ch,x)=>{if(ch!=='.'){X.fillStyle=p[ch];X.fillRect(px+x*s,py+y*s,s,s)}}));X.globalAlpha=1}
+function txt(t,y,sz,col){X.textAlign='center';X.font=`bold ${sz}px sans-serif`;X.fillStyle=col||'#eee';X.fillText(t,160,y)}
+function draw(){const cur=S.ph==='pause'?S.pv:S.ph;
+ X.save();X.fillStyle='#2a2622';X.fillRect(0,0,W,H);X.fillStyle='#1a1614';X.fillRect(0,132,W,48);X.fillStyle='#332e29';for(let i=0;i<W;i+=40)X.fillRect(i,0,2,132);
+ if(S.fx>0&&!sv.red)X.translate((Math.random()-.5)*6,(Math.random()-.5)*6);
+ for(let i=0;i<Math.min(S.k,N);i++)spr(B,[14,60,226,272][i],78,5,pal(S.q[i]),.25);
+ if(cur==='play'||(S.ph==='end'&&S.c!=='clear')){spr(B,128,52,8,pal(S.q[S.r]),1);
+  if(cur==='play'){X.fillStyle=onTarget()?'#f33':'#fc3';X.fillRect(S.ax-6,S.ay,13,1);X.fillRect(S.ax,S.ay-6,1,13);X.strokeStyle=X.fillStyle;X.strokeRect(S.ax-4.5,S.ay-4.5,9,9)}
+  X.fillStyle='#888';X.fillRect(176,148,58,8);X.fillStyle='#666';X.fillRect(222,154,12,22);X.fillStyle='#e0b088';X.fillRect(226,164,20,16)}
+ if(cur==='final'||(S.ph==='end'&&S.c==='clear')){spr(BF,128,52,8,ME,1);spr(B,40,82,6,SH,1);X.fillStyle='#888';X.fillRect(88,122,40,5)}
+ const g=X.createRadialGradient(160,90,50,160,90,190);g.addColorStop(0,'rgba(60,0,0,0)');g.addColorStop(1,`rgba(60,0,0,${Math.min(.8,S.k*.2)})`);X.fillStyle=g;X.fillRect(-8,-8,W+16,H+16);
+ X.restore();
+ if(act()||S.ph==='pause'){X.fillStyle=S.rt<S.lim*300?'#f33':'#ddd';X.fillRect(0,0,W*S.rt/(S.lim*1000),4)}
+ if(S.fx>0&&!sv.red){X.fillStyle=`rgba(255,255,255,${S.fx/260})`;X.fillRect(0,0,W,H)}
+ if(S.ph==='title'){X.fillStyle='rgba(0,0,0,.7)';X.fillRect(0,0,W,H);txt('방아쇠의 무게',80,22);txt('쏘지 않으면 내가 죽는다',105,11,'#e66');txt('Enter 또는 시작 버튼',140,10)}
+ if(S.ph==='pause'){X.fillStyle='rgba(0,0,0,.7)';X.fillRect(0,0,W,H);txt('일시정지',90,18);txt('P 키를 눌러 재개',112,10)}
+ if(S.ph==='end'){if(S.c==='clear'){X.fillStyle='rgba(0,0,0,.7)';X.fillRect(0,0,W,H);X.fillStyle='#fd4';X.fillRect(0,38,W,3);X.fillRect(0,104,W,3);txt('★ 승리 ★',76,30,'#fd4');txt('결말 도달 — 끝까지 방아쇠 앞에 서 있었다',92,10,'#fff');txt('주인공은 사망했다',124,12,'#e88')}else{X.fillStyle='rgba(60,0,0,.65)';X.fillRect(0,0,W,H);txt('사망',86,34,'#f55');txt('당신은 죽었다',108,12,'#fcc')}}}
+function ui(){const L={title:'대기',play:'진행',narr:'후폭풍',final:'최후',pause:'일시정지',end:S.c==='clear'?'승리 · 사망(결말 도달)':'사망'}[S.ph];
+ $('st').textContent=`상태: ${L} · 장면 ${Math.min(S.r+1,N+1)}/${N+1} · 처형 ${S.k}명 · 남은 시간 ${(S.rt/1000).toFixed(1)}초`;
+ $('ev').textContent=`입력 ${ev.r}건 = 반영 ${ev.o} + 무시 ${ev.i} · 효과 발동 ${ev.fx}회${S.mt>0?' · 빗나감! 조준점을 표적 위로 옮기세요':''}`;
+ const c=capText();if(c!==lastCap){$('cap').innerHTML=c;lastCap=c}}
+function tick(now){const dt=Math.min(now-last,100);last=now;
+ if(S.ph==='play'||S.ph==='final'){S.rt-=dt;S.ms+=dt;if(S.rt<=0){S.rt=0;finish(S.ph==='final'?'clear':'timeout')}}
+ else if(S.ph==='narr'){S.ms+=dt;S.nt-=dt;if(S.nt<=0){S.r++;S.rt=S.lim*1000;S.ax=AX;S.ay=AY;S.ph=S.r<N?'play':'final'}}
+ if(S.fx>0)S.fx-=dt;if(S.mt>0)S.mt-=dt;
+ draw();ui();requestAnimationFrame(tick)}
+const med=a=>{if(!a.length)return'-';a=[...a].sort((x,y)=>x-y);const m=a.length>>1;return a.length%2?a[m]:(a[m-1]+a[m])/2};
+function showLog(){const L=sv.log;let h='';
+ [4,6,8,10].forEach(l=>{const g=L.filter(o=>o.lim===l);if(!g.length)return;const k=g.map(o=>o.k),n=c=>g.filter(o=>o.c===c).length;
+  h+=`<p><b>제한 ${l}초</b> ${g.length}회 · 처형 ${Math.min(...k)}~${Math.max(...k)}명(중앙 ${med(k)}) · 플레이 시간 중앙 ${(med(g.map(o=>o.ms))/1000).toFixed(1)}초 · 결말 ${n('clear')} / 거부 ${n('refuse')} / 망설임 ${n('timeout')}</p>`});
+ if(L.length)h+='<table><tr><th>#<th>제한(초)<th>처형<th>시간(초)<th>끝난 원인<th>평균 반응(ms)</tr>'+L.slice(-20).map((o,i)=>`<tr><td>${L.length-Math.min(20,L.length)+i+1}<td>${o.lim}<td>${o.k}<td>${(o.ms/1000).toFixed(1)}<td>${CN[o.c]||'?'}<td>${o.avg}</tr>`).join('')+'</table>';
+ $('log').innerHTML=h||'아직 기록이 없습니다. 한 판을 끝내면 여기에 자동 저장됩니다.';$('bl').textContent=`기록 보기 (${L.length}판 저장됨)`}
+function sync(){$('lim').value=sv.lim;$('mu').checked=sv.mute;$('rd').checked=sv.red;$('note').textContent=note}
+addEventListener('keydown',e=>{if(e.repeat)return;const k=e.key.toLowerCase();
+ if(e.code==='Space'){e.preventDefault();fire()}else if(k==='n')refuse();else if(k==='p')tog();else if(k==='r'||k==='enter'){e.preventDefault();newRun()}});
+addEventListener('keyup',e=>{if(e.code==='Space')e.preventDefault()});
+addEventListener('blur',autoP);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)autoP()});
+const bt=(id,f)=>$(id).addEventListener('click',function(){f();this.blur()});
+bt('bf',fire);bt('bn',refuse);bt('bp',tog);bt('br',newRun);
+bt('bl',()=>{const d=$('dl');d.open=!d.open;if(d.open)d.scrollIntoView({block:'center'})});
+bt('bz',()=>{try{localStorage.removeItem(KEY)}catch(e){}sv=def();note='저장을 초기화했습니다. 기본값으로 시작합니다.';sync();showLog();fresh('title')});
+C.addEventListener('pointermove',e=>{const r=C.getBoundingClientRect();S.ax=Math.max(0,Math.min(W,(e.clientX-r.left)*W/r.width));S.ay=Math.max(0,Math.min(H,(e.clientY-r.top)*H/r.height))});
+C.addEventListener('click',e=>{if(S.ph==='title'){newRun();return}const r=C.getBoundingClientRect();S.ax=(e.clientX-r.left)*W/r.width;S.ay=(e.clientY-r.top)*H/r.height;fire()});
+$('lim').addEventListener('change',e=>{sv.lim=+e.target.value;save()});
+$('mu').addEventListener('change',e=>{sv.mute=e.target.checked;save()});
+$('rd').addEventListener('change',e=>{sv.red=e.target.checked;if(sv.red)S.fx=0;save()});
+fresh('title');sync();showLog();requestAnimationFrame(tick);
+})();
+</script></body></html>
