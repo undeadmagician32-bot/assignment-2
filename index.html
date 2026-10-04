@@ -81,10 +81,11 @@ function finish(c){bang();S.ph='end';S.c=c;
  const avg=S.rts.length?Math.round(S.rts.reduce((a,b)=>a+b)/S.rts.length):0;
  sv.log.push({c,k:S.k,ms:Math.round(S.ms),lim:S.lim,avg});sv.log=sv.log.slice(-100);save();showLog()}
 function endText(){
- if(S.c==='clear')return `<span style="background:#fd4;color:#111;padding:1px 8px;font-weight:700">★ 승리 — 결말 도달 ★</span><br><b>처형대에 선 사람.</b> ${N}명의 이름을 남기고 당신은 눈이 가려진 채 서 있다. 총을 든 사람은 끝내 얼굴을 보이지 않았다. <i>후일담: 명령서에는 당신의 이름 위에 "처리 완료"가 찍혔다. 당신의 이름은 ${N}명의 이름 아래에 같은 필체로 적혔다.</i>`;
+ if(S.c==='clear')return `<b>결말 — 처형대에 선 사람.</b> ${N}명의 이름을 남기고 당신은 눈이 가려진 채 서 있다. 총을 든 사람은 끝내 얼굴을 보이지 않았다. <i>후일담: 명령서에는 당신의 이름 위에 "처리 완료"가 찍혔다. 당신의 이름은 ${N}명의 이름 아래에 같은 필체로 적혔다.</i>`;
+ const win=S.k===0?`<span style="background:#fd4;color:#111;padding:1px 8px;font-weight:700">★ 승리 — 한 명도 쏘지 않았다 ★</span><br>`:'';
  const why=S.c==='refuse'?'쏘지 않았다':'망설였다';
  const ep=S.k?`방아쇠를 ${S.k}번 당긴 손은 마지막에 멈췄다. 명령서의 당신 이름 옆 사유란에는 "${CN[S.c]}" 한 단어가 적혔고, 서류는 다음 집행자에게 넘어갔다.`:`당신은 방아쇠를 한 번도 당기지 않았다. 명령서의 당신 이름 옆 사유란에는 "${CN[S.c]}" 한 단어가 적혔고, 서류는 조용히 서류철에 꽂혔다.`;
- return `<b>당신은 ${why}. 총성은 당신 쪽에서 울렸다.</b> <i>후일담: ${ep}</i>`}
+ return `${win}<b>당신은 ${why}. 총성은 당신 쪽에서 울렸다.</b> <i>후일담: ${ep}</i>`}
 function capText(){const p=S.ph==='pause'?S.pv:S.ph;
  if(p==='title'||S.ph==='title')return '시작 버튼 또는 Enter로 시작합니다. 명령이 떨어지면 망설일 시간은 많지 않습니다.';
  if(p==='play'){const v=S.q[S.r];return `<b>${v.n}(${v.a})</b> — 죄목: ${v.cr}. 쏘지 않으면 당신이 죽는다.${S.k?` <i>“${S.gt}”</i>`:''}`}
@@ -107,8 +108,8 @@ function draw(){const cur=S.ph==='pause'?S.pv:S.ph;
  if(S.fx>0&&!sv.red){X.fillStyle=`rgba(255,255,255,${S.fx/260})`;X.fillRect(0,0,W,H)}
  if(S.ph==='title'){X.fillStyle='rgba(0,0,0,.7)';X.fillRect(0,0,W,H);txt('방아쇠의 무게',80,22);txt('쏘지 않으면 내가 죽는다',105,11,'#e66');txt('Enter 또는 시작 버튼',140,10)}
  if(S.ph==='pause'){X.fillStyle='rgba(0,0,0,.7)';X.fillRect(0,0,W,H);txt('일시정지',90,18);txt('P 키를 눌러 재개',112,10)}
- if(S.ph==='end'){if(S.c==='clear'){X.fillStyle='rgba(0,0,0,.7)';X.fillRect(0,0,W,H);X.fillStyle='#fd4';X.fillRect(0,38,W,3);X.fillRect(0,104,W,3);txt('★ 승리 ★',76,30,'#fd4');txt('결말 도달 — 끝까지 방아쇠 앞에 서 있었다',92,10,'#fff');txt('주인공은 사망했다',124,12,'#e88')}else{X.fillStyle='rgba(60,0,0,.65)';X.fillRect(0,0,W,H);txt('사망',86,34,'#f55');txt('당신은 죽었다',108,12,'#fcc')}}}
-function ui(){const L={title:'대기',play:'진행',narr:'후폭풍',final:'최후',pause:'일시정지',end:S.c==='clear'?'승리 · 사망(결말 도달)':'사망'}[S.ph];
+ if(S.ph==='end'){if(S.c!=='clear'&&S.k===0){X.fillStyle='rgba(0,0,0,.7)';X.fillRect(0,0,W,H);X.fillStyle='#fd4';X.fillRect(0,38,W,3);X.fillRect(0,104,W,3);txt('★ 승리 ★',76,30,'#fd4');txt('한 명도 쏘지 않았다',92,10,'#fff');txt('주인공은 사망했다',124,12,'#e88')}else{X.fillStyle='rgba(60,0,0,.65)';X.fillRect(0,0,W,H);txt('사망',86,34,'#f55');txt(S.c==='clear'?'결말 도달':'당신은 죽었다',108,12,'#fcc')}}}
+function ui(){const L={title:'대기',play:'진행',narr:'후폭풍',final:'최후',pause:'일시정지',end:S.c==='clear'?'사망(결말 도달)':S.k===0?'승리 · 사망':'사망'}[S.ph];
  $('st').textContent=`상태: ${L} · 장면 ${Math.min(S.r+1,N+1)}/${N+1} · 처형 ${S.k}명 · 남은 시간 ${(S.rt/1000).toFixed(1)}초`;
  $('ev').textContent=`입력 ${ev.r}건 = 반영 ${ev.o} + 무시 ${ev.i} · 효과 발동 ${ev.fx}회${S.mt>0?' · 빗나감! 조준점을 표적 위로 옮기세요':''}`;
  const c=capText();if(c!==lastCap){$('cap').innerHTML=c;lastCap=c}}
