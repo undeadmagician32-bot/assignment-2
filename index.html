@@ -129,8 +129,10 @@ function showLog(){const L=sv.log;let h='';
  if(L.length)h+='<table><tr><th>#<th>제한(초)<th>처형<th>시간(초)<th>끝난 원인<th>평균 반응(ms)</tr>'+L.slice(-20).map((o,i)=>`<tr><td>${L.length-Math.min(20,L.length)+i+1}<td>${o.lim}<td>${o.k}<td>${(o.ms/1000).toFixed(1)}<td>${CN[o.c]||'?'}<td>${o.avg}</tr>`).join('')+'</table>';
  $('log').innerHTML=h||'아직 기록이 없습니다. 한 판을 끝내면 여기에 자동 저장됩니다.';$('bl').textContent=`기록 보기 (${L.length}판 저장됨)`}
 function sync(){$('lim').value=sv.lim;$('mu').checked=sv.mute;$('rd').checked=sv.red;$('note').textContent=note}
-addEventListener('keydown',e=>{if(e.repeat)return;const k=e.key.toLowerCase();
- if(e.code==='Space'){e.preventDefault();fire()}else if(k==='n')refuse();else if(k==='p')tog();else if(k==='r'||k==='enter'){e.preventDefault();newRun()}});
+let byMouse=false;
+addEventListener('pointerdown',()=>{byMouse=true},true);
+addEventListener('keydown',e=>{byMouse=false;if(e.repeat)return;const c=e.code,tg=e.target&&e.target.tagName;
+ if(c==='Space'){if(tg==='INPUT'||tg==='SELECT')return;e.preventDefault();fire()}else if(c==='KeyN')refuse();else if(c==='KeyP')tog();else if(c==='KeyR'||c==='Enter'||c==='NumpadEnter'){e.preventDefault();newRun()}});
 addEventListener('keyup',e=>{if(e.code==='Space')e.preventDefault()});
 addEventListener('blur',autoP);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)autoP()});
@@ -140,9 +142,10 @@ bt('bl',()=>{const d=$('dl');d.open=!d.open;if(d.open)d.scrollIntoView({block:'c
 bt('bz',()=>{try{localStorage.removeItem(KEY)}catch(e){}sv=def();note='저장을 초기화했습니다. 기본값으로 시작합니다.';sync();showLog();fresh('title')});
 C.addEventListener('pointermove',e=>{const r=C.getBoundingClientRect();S.ax=Math.max(0,Math.min(W,(e.clientX-r.left)*W/r.width));S.ay=Math.max(0,Math.min(H,(e.clientY-r.top)*H/r.height))});
 C.addEventListener('click',e=>{if(S.ph==='title'){newRun();return}const r=C.getBoundingClientRect();S.ax=(e.clientX-r.left)*W/r.width;S.ay=(e.clientY-r.top)*H/r.height;fire()});
-$('lim').addEventListener('change',e=>{sv.lim=+e.target.value;save()});
-$('mu').addEventListener('change',e=>{sv.mute=e.target.checked;save()});
-$('rd').addEventListener('change',e=>{sv.red=e.target.checked;if(sv.red)S.fx=0;save()});
+const done=e=>{if(byMouse)e.target.blur()};
+$('lim').addEventListener('change',e=>{sv.lim=+e.target.value;save();done(e)});
+$('mu').addEventListener('change',e=>{sv.mute=e.target.checked;save();done(e)});
+$('rd').addEventListener('change',e=>{sv.red=e.target.checked;if(sv.red)S.fx=0;save();done(e)});
 fresh('title');sync();showLog();requestAnimationFrame(tick);
 })();
 </script></body></html>
